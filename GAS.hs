@@ -102,25 +102,43 @@ printOneObject (Arrow h)  = "  " ++ show (Arrow h)
 printTwoObjects :: Object -> Object -> String
 printTwoObjects (Square c h) (Circle c2) = show (Square c h) ++ show (Circle c2)
 printTwoObjects (Square c h) (Arrow h2) = show (Square c h) ++ show (Arrow h2)
+printTwoObjects _ _ = "Not square inside this two object list."
+
+{-
+	Am adaugat la sfarsitul coloanelor o coloana doar cu caracterul newline.
+	De acolo provine numarul "The rightmost element + 1".
+
+	Forma Tabela:
+	3 3 3 ... 3 3 4 2
+	3 3 3 ... 3 3 4 2
+		  ...
+	3 3 3 ... 3 3 4 2
+	3 3 3 ... 3 3 4 1 -> fara newline pe ultimul rand
+
+	Cazul 3 este cel de baza. Acesta se imparte in 3 situatii:
+	3.1 -> pe pozitia (x, y) nu se afla niciun element
+	3.2 -> pe pozitia (x, y) se afla un element => printOneObject 
+	3.3 -> pe pozitia (x, y) se afla 2 elemente => printTwoObjects
+-}
 
 createElem :: Level -> Int -> Int -> Int -> Int -> [Char]
 createElem (Level m) x y rightMost downMost
-	| and [(x == downMost), (y == rightMost)] = ""
-	| y == rightMost = "\n"
-	| and [(M.notMember (x, y) m), (y <  (rightMost - 1))] = "   |"
-	| and [(M.notMember (x, y) m), (y >= (rightMost - 1))] = "   "
-	| and [(length objList == 1), (y <  (rightMost - 1))] = printOneObject (head objList) ++ "|"
-	| and [(length objList == 1), (y >= (rightMost - 1))] = (printOneObject (head objList))
-	| and [(length objList == 2), (y < (rightMost - 1))] = (printTwoObjects (head objList) (last objList))  ++ "|"
-	| otherwise = printTwoObjects (head objList) (last objList)
+	| and [(x == downMost), (y == rightMost)] = ""  -- 1
+	| y == rightMost = "\n"							-- 2
+	| and [(M.notMember (x, y) m), (y <  (rightMost - 1))] = "   |" -- 3.1
+	| and [(M.notMember (x, y) m), (y >= (rightMost - 1))] = "   "  -- 4
+	| and [(length objList == 1), (y <  (rightMost - 1))] = printOneObject (head objList) ++ "|" -- 3.2
+	| and [(length objList == 1), (y >= (rightMost - 1))] = (printOneObject (head objList))      -- 4
+	| and [(length objList == 2), (y < (rightMost - 1))] = (printTwoObjects (head objList) (last objList))  ++ "|"  -- 3.3
+	| otherwise = printTwoObjects (head objList) (last objList)														-- 4
 	where objList = m M.! (x, y)
 
 createTable :: Level -> [Int] -> [Int] -> [String]
 createTable l xs ys = [createElem l x y (last ys) (last xs)| x <- xs , y <- ys]
 
 instance Show Level where
-    show (Level l) = concat $ createTable (Level l) [(getUpmostPos (M.toList l))..(getDownmostPos (M.toList l))]
-    											[(getLeftmostPos (M.toList l))..((getRightmostPos (M.toList l)) + 1)]
+    show (Level l) = concat $ createTable (Level l) [(getUpmostPos (M.toList l))  .. (getDownmostPos (M.toList l))]
+    											    [(getLeftmostPos (M.toList l))..((getRightmostPos (M.toList l)) + 1)]
     										
 
 {-
@@ -176,60 +194,45 @@ addArrow h p (Level m)
 
 --HELPFUL FUNCTIONS
 getHeading :: Object -> Heading
-getHeading (Square c h) = h
+getHeading (Square _ h) = h
 getHeading (Arrow h) = h
 
 getColor :: Object -> Color
-getColor (Square c h) = c
+getColor (Square c _) = c
 getColor (Circle c) = c
 
-isNotSquare :: Object -> Bool
-isNotSquare (Square c h) = False
-isNotSquare (Circle c) = True
-isNotSquare (Arrow h) = True
+isSquare :: Object -> Bool
+isSquare (Square _ _) = True
+isSquare (Circle _) = False
+isSquare (Arrow _) = False
+
+isArrow :: Object -> Bool
+isArrow (Square _ _) = False
+isArrow (Circle _) = False
+isArrow (Arrow _) = True
+
+isCircle :: Object -> Bool
+isCircle (Square _ _) = False
+isCircle (Circle _) = True
+isCircle (Arrow _) = False
 
 containsSquare :: [Object] -> Bool
-containsSquare [] = False
-containsSquare (obj:list)
-	| isNotSquare obj = containsSquare list
-	| otherwise = True
-
-isNotArrow :: Object -> Bool
-isNotArrow (Square c h) = True
-isNotArrow (Circle c) = True
-isNotArrow (Arrow h) = False
+containsSquare list = not.null $ filter (isSquare) list
 
 containsArrow :: [Object] -> Bool
-containsArrow [] = False
-containsArrow (obj:list)
-	| isNotArrow obj = containsArrow list
-	| otherwise = True
-
-isNotCircle :: Object -> Bool
-isNotCircle (Square c h) = True
-isNotCircle (Circle c) = False
-isNotCircle (Arrow h) = True
+containsArrow list = not.null $ filter (isArrow) list
 
 containsCircle :: [Object] -> Bool
-containsCircle [] = False
-containsCircle (obj:list)
-	| isNotCircle obj = containsCircle list
-	| otherwise = True
+containsCircle list = not.null $ filter (isCircle) list
 
 getSquareFromObjects :: [Object] -> Object
-getSquareFromObjects (obj:list)
-	| isNotSquare obj = getSquareFromObjects list
-	| otherwise = obj
+getSquareFromObjects list = head $ filter (isSquare) list
 
 getArrowFromObjects :: [Object] -> Object
-getArrowFromObjects (obj:list)
-	| isNotArrow obj = getArrowFromObjects list
-	| otherwise = obj
+getArrowFromObjects list = head $ filter (isArrow) list
 
 getNotSquareFromObjects :: [Object] -> [Object]
-getNotSquareFromObjects (obj:list)
-	| isNotSquare obj = [obj]
-	| otherwise = getNotSquareFromObjects list
+getNotSquareFromObjects list = filter (not.isSquare) list
 
 getNextPosition :: Position -> Heading -> Position
 getNextPosition (x, y) h
@@ -249,11 +252,8 @@ getNewHeading oldHeading p (Level m)
 
 getModifiedLevel :: Position -> Heading -> Level -> Level
 getModifiedLevel p h (Level m)
-	| M.notMember p m = (Level m)
-	| not $ containsSquare objList = (Level m)
-	| (length objList) == 1 = addSquare (getColor sq) newHeading p2 $ Level $ M.delete p m
-	| otherwise = addSquare (getColor sq) newHeading p2 $ Level $
-					M.adjust (getNotSquareFromObjects) p m
+	| (length objList) == 1 = addSquare (getColor sq) newHeading p2 $ Level $ M.delete p m -- un obiecte -> sigur patrat
+	| otherwise = addSquare (getColor sq) newHeading p2 $ Level $ M.adjust (getNotSquareFromObjects) p m -- 2 obiecte
 	where
 		objList = m M.! p
 		sq = getSquareFromObjects objList
@@ -262,24 +262,24 @@ getModifiedLevel p h (Level m)
 
 moveAllSquaresInOneDirection :: Position -> Heading -> Level -> Level
 moveAllSquaresInOneDirection p h (Level m)
-	| M.notMember p m = (Level m)
-	| not $ containsSquare objList  = (Level m)
-	| otherwise = getModifiedLevel p h $
-				  moveAllSquaresInOneDirection p2 h (Level m)
+	| M.notMember p m = (Level m)									-- pozitia p este goala
+	| not $ containsSquare objList  = (Level m)						-- pozitia p nu contine patrat
+	| otherwise = getModifiedLevel p h $							-- apelam recursiv pentru urmatoarea casuta
+				  moveAllSquaresInOneDirection p2 h (Level m)		-- 	   cat timp nu avem patrat in pozitia "p2"
 	where
-		objList = m M.! p
-		p2 = getNextPosition p h
+		objList = m M.! p 			-- lista cu obiectele de pe pozitia p
+		p2 = getNextPosition p h    -- pozitia urmatoare pozitiei "p" in directia "h"
 
 move :: Position  -- Poziția
      -> Level     -- Nivelul inițial
      -> Level     -- Nivelul final
 move p (Level m)
-	| M.notMember p m = (Level m)
-	| not $ containsSquare objList  = (Level m)
-	| otherwise = moveAllSquaresInOneDirection p direction (Level m)
+	| M.notMember p m = (Level m)										-- pozitia p este goala
+	| not $ containsSquare objList  = (Level m)							-- pozitia p nu contine patrat
+	| otherwise = moveAllSquaresInOneDirection p direction (Level m)	-- mutam toate patratele in directia "direction"
 	where
-		objList = m M.! p
-		direction = getHeading $ getSquareFromObjects objList
+		objList = m M.! p 											    -- lista cu obiectele de pe pozitia p
+		direction = getHeading $ getSquareFromObjects objList           -- directia patratului de pe pozitia p
 		
 
 {-
@@ -296,6 +296,10 @@ checkColors (obj:list)
 getSquaresPositions :: Level -> [Position]
 getSquaresPositions (Level m) = map (fst) $ M.toList $ M.filterWithKey (\_ k -> containsSquare k) m
 
+-- spre deosebire de getSquaresPositions care returneaza pozitiile patratelor
+-- getUnfittedPositions returneaza pozitiile care contin patrat, cerc si culorile
+-- acestora coincid.
+
 getUnfittedPositions :: Level -> [Position]
 getUnfittedPositions (Level m) = map (fst) $ M.toList $ M.filterWithKey (\_ k -> checkColors k)
 													  $ M.filterWithKey (\_ k -> containsCircle k)
@@ -309,4 +313,6 @@ instance ProblemState Level Position where
     	|otherwise = False
 
     -- Doar petru BONUS
-    -- heuristic =
+    heuristic l
+    	| isGoal l = 1
+    	| otherwise = 0
